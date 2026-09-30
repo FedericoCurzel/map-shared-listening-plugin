@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Listening Experience</title>
+  <link rel="icon" type="image/png" href="media/img/brainote.png">
+
+  <!-- JATOS -->
+  <script src="jatos.js"></script>
+
+  <!-- jsPsych v6 -->
+  <script src="jspsych/jspsych.js"></script>
+  <link href="jspsych/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+  <!-- Plugins -->
+  <script src="jspsych/plugins/jspsych-fullscreen.js"></script>
+  <script src="jspsych/plugins/jspsych-audio-button-response.js"></script>
+  <script src="jspsych/plugins/jspsych-multiple-slider.js"></script>
+  <script src="jspsych/plugins/jspsych-map-shared-listening-v1_0.js"></script>
+  <script src="jspsych/plugins/jspsych-survey-text.js"></script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #0e0e14;
+      min-height: 100vh;
+      width: 100%;
+      overflow-x: hidden;
+      font-family: 'DM Sans', sans-serif;
+      color: #f0eeff;
+    }
+
+    #jspsych-target {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .jspsych-display-element {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    // ────────────────────────────────────────────────────────────────────────
+    // TIMELINE
+    // ────────────────────────────────────────────────────────────────────────
+
+    var timeline = [];
+
+    // Trial 1: Fullscreen
+    timeline.push({
+      type: "fullscreen",
+      fullscreen_mode: true,
+      message:
+        "<p style=\"font-size: 18px; color: #f0eeff; font-family: 'DM Sans', sans-serif; line-height: 1.6;\">" +
+        "The experiment will now enter <b>fullscreen mode</b> when you click the button below.<br><br>" +
+        "Please ensure you have a quiet environment and your audio is enabled." +
+        "</p>",
+      button_label: "<b>Enter Fullscreen</b>",
+    });
+
+    // Trial 2: Audio Test
+    timeline.push({
+      type: 'audio-button-response',
+      stimulus: 'media/1883.mp3',
+      prompt:
+        '<p><img src="media/img/casque.png" width="300px" height="auto"></p>' +
+        '<p style="font-size: 16px; color: #f0eeff; font-family: \'DM Sans\', sans-serif; line-height: 1.6;">' +
+        'Please put on your headphones and <b>adjust the volume</b> to a comfortable level.' +
+        '<br>Once you are comfortable, click the button below (you do not need to wait for the track to finish).' +
+        '</p>',
+      choices: ['<b>Volume is good!</b>'],
+      data: { type: 'trial' },
+      on_load: function() {
+        var audio_element = document.querySelector('audio');
+        if (audio_element) {
+          var play_promise = audio_element.play();
+          if (play_promise !== undefined) {
+            play_promise.catch(function(error) {
+              var overlay = document.createElement('div');
+              overlay.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; color: #f0eeff; font-family: DM Sans; z-index: 10000; text-align: center; cursor: pointer;';
+              overlay.innerHTML = '<p style="margin: 0; font-size: 14px;">🔊 Click to enable audio</p>';
+              document.body.appendChild(overlay);
+              var enable_audio = function() {
+                audio_element.play().catch(function(err) {});
+                overlay.remove();
+                document.removeEventListener('click', enable_audio);
+              };
+              document.addEventListener('click', enable_audio);
+            });
+          }
+        }
+      }
+    });
+
+    // Trial 3: Main Listening Task
+    timeline.push({
+      type: 'map-shared-listening',
+      audio: 'media/1394.mp3',
+      prompt: 'Listen carefully and move the slider to reflect your moment-to-moment pleasure with the music.',
+      slider_labels: ['No pleasure at all', 'A lot of pleasure'],
+      slider_start: 50,
+      trial_ends_after_audio: true,
+      audio_delay: 1000,
+      pre_synchro_phase: 'yes',
+      num_people_connected: 6,
+      country: 'italy',
+      data: { type: 'trial' },
+      on_finish: function (data) {
+        var trial_data = jsPsych.data.get().filter({ type: 'trial' }).csv();
+        jatos.submitResultData(trial_data);
+      }
+    });
+
+    // Trial 4: Overall Ratings
+    var overall_ratings = {
+      type: "multiple-slider",
+      questions: [
+        {
+          prompt: "<p>Did you feel <b>pleasure</b> while listening to the music?</p>",
+          name: "Overall_Pleasure",
+          labels: ["<b>No pleasure at all</b>", "<b>A lot of pleasure</b>"],
+          slider_start: 50,
+          min: 0,
+          max: 100,
+        },
+        {
+          prompt: "<p>Did you perceive the music as <b>sad or joyful</b>? (regardless of your mood and taste)</p>",
+          name: "Overall_Valence",
+          labels: ["<b>Very sad</b>", "<b>Very joyful</b>"],
+          slider_start: 50,
+          min: 0,
+          max: 100,
+        },
+        {
+          prompt: "<p>Did you perceive the music as <b>calm or energetic</b>?</p>",
+          name: "Overall_Arousal",
+          labels: ["<b>Very calm</b>", "<b>Very energetic</b>"],
+          slider_start: 50,
+          min: 0,
+          max: 100,
+        },
+        {
+          prompt: "<p>Did you feel that you had <b>heard this music before</b>?</p>",
+          name: "Overall_Familiarity",
+          labels: ["<b>Not at all familiar</b>", "<b>Very familiar</b>"],
+          slider_start: 50,
+          min: 0,
+          max: 100,
+        },
+      ],
+      show_value: true,
+      slider_width: "580",
+      preamble: "<p>Please use the sliders to answer the following questions.</p><p><b>Overall...</b></p>",
+      button_label: "Continue",
+      data: { type: "trial" },
+      on_finish: function (data) {
+        var submittedResponses = JSON.parse(data.responses);
+        data.Overall_Pleasure = submittedResponses.Overall_Pleasure;
+        data.Overall_Valence = submittedResponses.Overall_Valence;
+        data.Overall_Arousal = submittedResponses.Overall_Arousal;
+        data.Overall_Familiarity = submittedResponses.Overall_Familiarity;
+        jatos.submitResultData(jsPsych.data.get().csv());
+      },
+    };
+
+    timeline.push(overall_ratings);
+
+    var comments = {
+      type: "survey-text",
+      preamble: "<p> Feel free to leave us a <b>comment</b> on your experience if you'd like </p>",
+      questions: [
+        {
+          prompt: "or if you have any feedback :",
+          name: "free_text",
+          placeholder: "...",
+          rows: 8,
+          columns: 60,
+          required: false,
+        },
+      ],
+      //  html: '<p> <input name="free_text" type="text" size="60"/> </p><br><br>',
+      button_label: "Continue",
+      data: { type: "trial" },
+      on_finish: function (data) {
+        submittedResponses = JSON.parse(data.responses);
+        data.free_text = submittedResponses.free_text;
+        jatos.submitResultData(jsPsych.data.get().csv());
+      },
+    };
+
+    timeline.push(comments);
+
+    // ────────────────────────────────────────────────────────────────────────
+    // JATOS INITIALIZATION
+    // ────────────────────────────────────────────────────────────────────────
+
+    jatos.onLoad(function () {
+      // Loading screen
+      document.body.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          background: #0e0e14;
+          font-family: 'DM Sans', sans-serif;
+          color: #f0eeff;
+        ">
+          <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 20px; animation: pulse 1.5s infinite;">⏳</div>
+            <h2 style="font-size: 24px; margin: 0 0 10px; font-family: 'DM Serif Display', serif; font-weight: 400;">
+              Loading experiment...
+            </h2>
+            <p style="font-size: 14px; color: #8b8ba7; margin: 0;">
+              Please wait while resources are being prepared
+            </p>
+          </div>
+          <style>
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          </style>
+        </div>
+      `;
+
+      // Add metadata
+      jsPsych.data.addProperties({
+        subjectID: jatos.workerId,
+        studyID: jatos.studyId,
+        timestamp: new Date().toISOString()
+      });
+
+      // Initialize
+      jsPsych.init({
+        max_load_time: 120000,
+        show_progress_bar: false,
+        timeline: timeline,
+        override_safe_mode: false,
+        use_webaudio: false,
+
+        on_finish: function () {
+          var outputData = jsPsych.data.get().filter({ type: 'trial' }).csv();
+
+          document.body.innerHTML = `
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              background: #0e0e14;
+              font-family: 'DM Sans', sans-serif;
+              color: #f0eeff;
+              padding: 20px;
+            ">
+              <div style="text-align: center; max-width: 500px;">
+                <div style="font-size: 56px; margin-bottom: 20px;">✓</div>
+                <h2 style="font-size: 28px; margin: 0 0 12px; font-family: 'DM Serif Display', serif; font-weight: 400;">
+                  Thank you!
+                </h2>
+                <p style="font-size: 16px; color: #8b8ba7; line-height: 1.6; margin: 0;">
+                  Your data has been saved.
+                </p>
+              </div>
+            </div>
+          `;
+
+          jatos.submitResultData(outputData, function () {
+            setTimeout(function () {
+              jatos.startNextComponent();
+            }, 2000);
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
